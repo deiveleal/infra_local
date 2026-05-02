@@ -1,4 +1,4 @@
-# infra_local
+# Infraestrutura para teste local
 
 Repositório base para subir ferramentas de infraestrutura localmente via Kubernetes, usando Terraform. Ideal para experimentos e desenvolvimento local.
 
