@@ -11,5 +11,6 @@ bash message/kafka/port-forward.sh
 bash database/mongodb/port-forward.sh
 bash database/postgresql/port-forward.sh
 bash ia/ollama/port-forward.sh
+bash orquestrador/airflow/port-forward.sh
 echo ""
 echo "Para parar: make port-forward-stop"

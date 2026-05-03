@@ -210,6 +210,38 @@ print(','.join(names) if names else '')
   fi
 fi
 
+# ── Airflow — localhost:8080 ───────────────────────────────────────────────────
+section "Airflow  localhost:8080"
+
+if require_port 8080 "Airflow"; then
+  pass "port 8080 open"
+
+  code=$(http_status http://localhost:8080/health)
+  if [[ "$code" == "200" ]]; then
+    pass "health endpoint → $code"
+
+    health=$(curl -s --max-time 5 http://localhost:8080/health 2>/dev/null)
+    meta=$(echo "$health" | python3 -c \
+      "import sys,json; print(json.load(sys.stdin).get('metadatabase',{}).get('status','?'))" 2>/dev/null || echo "?")
+    sched=$(echo "$health" | python3 -c \
+      "import sys,json; print(json.load(sys.stdin).get('scheduler',{}).get('status','?'))" 2>/dev/null || echo "?")
+    [[ "$meta"  == "healthy" ]] && pass "metadatabase: $meta"  || fail "metadatabase: $meta"
+    [[ "$sched" == "healthy" ]] && pass "scheduler: $sched"    || fail "scheduler: $sched"
+  else
+    fail "health endpoint → $code"
+  fi
+
+  code=$(http_status -u adminuser:adminuser "http://localhost:8080/api/v1/dags?limit=100")
+  if [[ "$code" == "200" ]]; then
+    dag_count=$(curl -s --max-time 5 -u adminuser:adminuser \
+      "http://localhost:8080/api/v1/dags?limit=100" 2>/dev/null \
+      | python3 -c "import sys,json; print(len(json.load(sys.stdin).get('dags',[])))" 2>/dev/null || echo "?")
+    pass "API autenticada OK — $dag_count DAG(s) encontrada(s)"
+  else
+    fail "API autenticada → HTTP $code (expected 200)"
+  fi
+fi
+
 # ── Summary ────────────────────────────────────────────────────────────────────
 TOTAL=$((PASS + FAIL + SKIP))
 printf "\n%s\n" "$(printf '═%.0s' $(seq 1 56))"

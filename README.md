@@ -4,20 +4,22 @@ Repositório base para subir ferramentas de infraestrutura localmente via Kubern
 
 ## Ferramentas disponíveis
 
-| Ferramenta | Categoria      | Porta(s)          | Interface Web          | Credenciais           |
-|------------|----------------|-------------------|------------------------|-----------------------|
-| MinIO      | Storage        | 9000 (API), 9001  | http://localhost:9001  | adminuser / adminuser |
-| RabbitMQ   | Mensageria     | 5672, 15672       | http://localhost:15672 | adminuser / adminuser |
-| Kafka      | Mensageria     | 9092              | —                      | sem autenticação      |
-| MongoDB    | Banco NoSQL    | 27017             | —                      | adminuser / adminuser |
-| PostgreSQL | Banco Relacional | 5432            | —                      | adminuser / adminuser |
-| Ollama     | IA / LLM       | 11434             | —                      | sem autenticação      |
+| Ferramenta | Categoria        | Porta(s)          | Interface Web          | Credenciais           |
+|------------|------------------|-------------------|------------------------|-----------------------|
+| MinIO      | Storage          | 9000 (API), 9001  | http://localhost:9001  | adminuser / adminuser |
+| RabbitMQ   | Mensageria       | 5672, 15672       | http://localhost:15672 | adminuser / adminuser |
+| Kafka      | Mensageria       | 9092              | —                      | sem autenticação      |
+| MongoDB    | Banco NoSQL      | 27017             | —                      | adminuser / adminuser |
+| PostgreSQL | Banco Relacional | 5432              | —                      | adminuser / adminuser |
+| Ollama     | IA / LLM         | 11434             | —                      | sem autenticação      |
+| Airflow    | Orquestrador     | 8080              | http://localhost:8080  | adminuser / adminuser |
 
 **Notas:**
 - DB padrão do PostgreSQL: `eda-postgresql-db`
 - MinIO inicializa com os buckets: `logs`, `staging`, `bronze`, `silver`, `gold`
 - Kafka inicializa com os tópicos: `ingestion.database.events`, `pipeline.processed.data`, `system.logs`
 - Ollama: modelos configurados em `ia/ollama/environment.auto.tfvars` (padrão: `phi3:latest`)
+- Airflow: DAGs persistem em `/tmp/airflow-data/dags` no host; exemplos habilitados por padrão (configurável em `orquestrador/airflow/environment.auto.tfvars`)
 - Armazenamento via `hostPath` — dados persistem entre restarts do pod, mas são apagados com `kind delete cluster` / `minikube delete`
 
 ## Pré-requisitos
@@ -49,7 +51,7 @@ make init mongodb
 make apply mongodb
 ```
 
-Ferramentas disponíveis: `minio`, `rabbitmq`, `kafka`, `mongodb`, `postgresql`, `ollama`
+Ferramentas disponíveis: `minio`, `rabbitmq`, `kafka`, `mongodb`, `postgresql`, `ollama`, `airflow`
 
 É possível combinar múltiplas ferramentas em um único comando:
 
@@ -82,13 +84,44 @@ make port-forward-stop kafka    # para apenas o Kafka
 bash test_infra.sh
 
 # Testes Python — CRUD completo em cada serviço
-pip install -r test_requirements.txt
-python test_infra.py
+pip install minio pika kafka-python pymongo psycopg2-binary requests
+python test_services.py
 ```
 
 O script shell verifica conectividade, autenticação e estado dos recursos (topics, vhosts, modelos).
 O script Python executa operações de leitura/escrita em cada serviço.
 Ambos retornam exit code `0` se tudo passou, `1` se algum check falhou.
+
+## Airflow — gerenciar DAGs
+
+Após subir o Airflow, a Web UI e a API REST ficam disponíveis na porta 8080 (requer port-forward ativo):
+
+```bash
+# Acessar a Web UI
+http://localhost:8080   # admin: adminuser / adminuser
+
+# Listar DAGs via API REST
+curl -u adminuser:adminuser http://localhost:8080/api/v1/dags
+
+# Acionar uma DAG manualmente via API
+curl -u adminuser:adminuser -X POST http://localhost:8080/api/v1/dags/<dag_id>/dagRuns \
+  -H "Content-Type: application/json" -d '{}'
+```
+
+Para adicionar DAGs, copie os arquivos `.py` para o diretório montado no host:
+
+```bash
+cp minha_dag.py /tmp/airflow-data/dags/
+```
+
+O Airflow usa **SequentialExecutor com SQLite** — adequado para experimentos locais. Para desabilitar os DAGs de exemplo:
+
+```hcl
+# orquestrador/airflow/environment.auto.tfvars
+enable_examples = "False"
+```
+
+> **Atenção:** o Airflow leva ~120–300 segundos para inicializar. Se o port-forward falhar logo após o `make apply`, aguarde e execute `make port-forward airflow`.
 
 ## Ollama — gerenciar modelos
 
@@ -126,6 +159,8 @@ infra_local/
 ├── message/
 │   ├── kafka/         — Kafka via Bitnami Helm (KRaft, sem Zookeeper)
 │   └── rabbitmq/      — RabbitMQ 4 com management UI
+├── orquestrador/
+│   └── airflow/       — Apache Airflow 2.9.1 (SequentialExecutor, SQLite)
 ├── storage/
 │   └── minio/         — MinIO (buckets pré-criados no apply)
 ├── makefile

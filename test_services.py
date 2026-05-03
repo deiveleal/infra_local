@@ -10,6 +10,7 @@ Serviços cobertos
   MongoDB    → ping, insert, find, cleanup
   PostgreSQL → conexão, insert, select, cleanup
   Ollama     → API, lista de modelos, inferência
+  Airflow    → health, autenticação, listar DAGs
 
 Instalação
 ──────────
@@ -78,6 +79,12 @@ OLLAMA = {
     "model":             "phi3:latest",
     "run_inference":     True,   # False → pula a inferência (mais rápido)
     "inference_timeout": 120,
+}
+
+AIRFLOW = {
+    "base_url": "http://localhost:8080",
+    "user":     "adminuser",
+    "password": "adminuser",
 }
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -469,6 +476,52 @@ def testar_ollama() -> None:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Airflow
+# ══════════════════════════════════════════════════════════════════════════════
+
+def testar_airflow() -> None:
+    secao(f"Airflow  {AIRFLOW['base_url']}")
+    try:
+        import requests as req
+    except ImportError:
+        pular("Airflow", "pip install requests")
+        return
+
+    cfg  = AIRFLOW
+    base = cfg["base_url"]
+    auth = (cfg["user"], cfg["password"])
+
+    def health():
+        r = req.get(f"{base}/health", timeout=5)
+        r.raise_for_status()
+        data  = r.json()
+        meta  = data.get("metadatabase", {}).get("status", "?")
+        sched = data.get("scheduler",    {}).get("status", "?")
+        if meta != "healthy":
+            raise AssertionError(f"metadatabase={meta}")
+        if sched != "healthy":
+            raise AssertionError(f"scheduler={sched}")
+        return f"metadatabase={meta}, scheduler={sched}"
+
+    def autenticacao():
+        r = req.get(f"{base}/api/v1/dags", auth=auth, timeout=5)
+        if r.status_code == 401:
+            raise AssertionError("credenciais inválidas")
+        r.raise_for_status()
+        return "básica OK"
+
+    def listar_dags():
+        r = req.get(f"{base}/api/v1/dags", auth=auth, params={"limit": 100}, timeout=5)
+        r.raise_for_status()
+        dags = r.json().get("dags", [])
+        return f"{len(dags)} DAG(s) encontrada(s)"
+
+    rodar("Airflow: health e componentes", health)
+    if rodar("Airflow: autenticação", autenticacao):
+        rodar("Airflow: listar DAGs", listar_dags)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # Resumo final
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -510,5 +563,6 @@ if __name__ == "__main__":
     testar_mongodb()
     testar_postgresql()
     testar_ollama()
+    testar_airflow()
 
     sys.exit(0 if resumo() else 1)
