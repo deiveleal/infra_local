@@ -6,6 +6,7 @@ PATH_rabbitmq   = message/rabbitmq
 PATH_kafka      = message/kafka
 PATH_mongodb    = database/mongodb
 PATH_postgresql = database/postgresql
+PATH_superset   = vis/superset
 PATH_ollama     = ia/ollama
 PATH_airflow    = orquestrador/airflow
 
@@ -14,12 +15,13 @@ NS_rabbitmq   = rabbitmq-ns
 NS_kafka      = kafka-ns
 NS_mongodb    = mongodb-ns
 NS_postgresql = postgresql-ns
+NS_superset   = superset-ns
 NS_ollama     = ollama-ns
 NS_airflow    = airflow-ns
 
-ALL_TOOLS     = minio rabbitmq kafka mongodb postgresql ollama airflow
-APPLY_ORDER   = minio rabbitmq kafka mongodb postgresql ollama airflow
-DESTROY_ORDER = airflow ollama postgresql mongodb kafka rabbitmq minio
+ALL_TOOLS     = minio rabbitmq kafka mongodb postgresql superset ollama airflow
+APPLY_ORDER   = minio rabbitmq kafka mongodb postgresql superset ollama airflow
+DESTROY_ORDER = airflow ollama superset postgresql mongodb kafka rabbitmq minio
 
 .DEFAULT_GOAL := help
 

@@ -11,6 +11,7 @@ Repositório base para subir ferramentas de infraestrutura localmente via Kubern
 | Kafka      | Mensageria       | 9092              | —                      | sem autenticação      |
 | MongoDB    | Banco NoSQL      | 27017             | —                      | adminuser / adminuser |
 | PostgreSQL | Banco Relacional | 5432              | —                      | adminuser / adminuser |
+| Superset   | Visualização BI  | 8088              | http://localhost:8088  | adminuser / adminuser |
 | Ollama     | IA / LLM         | 11434             | —                      | sem autenticação      |
 | Airflow    | Orquestrador     | 8080              | http://localhost:8080  | adminuser / adminuser |
 
@@ -18,6 +19,7 @@ Repositório base para subir ferramentas de infraestrutura localmente via Kubern
 - DB padrão do PostgreSQL: `eda-postgresql-db`
 - MinIO inicializa com os buckets: `logs`, `staging`, `bronze`, `silver`, `gold`
 - Kafka inicializa com os tópicos: `ingestion.database.events`, `pipeline.processed.data`, `system.logs`
+- Superset: utiliza PostgreSQL como metastore; cria database `superset_db` automaticamente; RabbitMQ como broker Celery (opcional)
 - Ollama: modelos configurados em `ia/ollama/environment.auto.tfvars` (padrão: `phi3:latest`)
 - Airflow: DAGs persistem em `/tmp/airflow-data/dags` no host; exemplos habilitados por padrão (configurável em `orquestrador/airflow/environment.auto.tfvars`)
 - Armazenamento via `hostPath` — dados persistem entre restarts do pod, mas são apagados com `kind delete cluster` / `minikube delete`
@@ -51,7 +53,7 @@ make init mongodb
 make apply mongodb
 ```
 
-Ferramentas disponíveis: `minio`, `rabbitmq`, `kafka`, `mongodb`, `postgresql`, `ollama`, `airflow`
+Ferramentas disponíveis: `minio`, `rabbitmq`, `kafka`, `mongodb`, `postgresql`, `superset`, `ollama`, `airflow`
 
 É possível combinar múltiplas ferramentas em um único comando:
 
